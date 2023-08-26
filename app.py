@@ -1,5 +1,6 @@
 import streamlit as st
 import pandas as pd
+from eda import load_data, get_rare_pie
 import seaborn as sns
 import matplotlib.pyplot as plt
 
@@ -7,67 +8,23 @@ GENERAL_DF = 'datasets/general_df.csv'
 GENERAL_DF_CLEANED = 'datasets/general_df_cleaned.csv'
 LOANS_DF = 'datasets/loans_df.csv'
 
-clients_without_loans_now = 9477
-clients_with_loans_now = len(general_df) - clients_without_loans_now
-
 continuous_features = ['credit', 'fst_payment', 'age', 'child_total', 'dependants',
                        'own_auto', 'personal_income', 'work_time', 'closed_loans_count',
                        'total_loans_count']
 
 #SECTION 1 DATA LOADING
-def load_data(path: str):
-    return pd.read_csv(path, index_col=0)
-
-#pie chart function
-def get_rare_pie(data: pd.Series, limits_count: int = 5):
-
-    """Function to draw pie chart with rare categories"""
-    limits_dict = {}
-
-    for i in range(1, limits_count + 1):
-        limits_dict[i] = int(len(data) / 100 * i + 1)
-
-    rare_values = {}
-    data_to_pie_dict_categories = {}
-    data_to_pie = None
-
-    for i in range(1, limits_count + 1):
-
-        if i == 1:
-            rare_values[i] = data.value_counts()[data.value_counts() < limits_dict[i]].index
-
-        else:
-            rare_values[i] = data.value_counts()[
-                (data.value_counts() < limits_dict[i]) & (data.value_counts() >= limits_dict[i - 1])].index
-
-        data_to_pie_dict_categories[
-            f'Categories ({len(rare_values[i])}) in which there are less samples than {i}% of data'] = len(
-            rare_values[i])
-
-    pie_labels_categories = data_to_pie_dict_categories.keys()
-    pie_values_categories = data_to_pie_dict_categories.values()
-
-    fig = plt.figure(figsize=(6, 6))
-
-    plt.pie(pie_values_categories, autopct='%1.0f%%',
-            colors=sns.color_palette('Set2'), shadow=True,
-            wedgeprops={"edgecolor": "white",
-                        'linewidth': 2,
-                        'antialiased': True})
-    plt.legend(pie_labels_categories, bbox_to_anchor=(1, 0.7))
-    plt.title('Categories in which samples are less than % of the data', weight='bold')
-    plt.show()
-
-    return fig
 
 general_df = load_data(GENERAL_DF)
 general_df_cleaned = load_data(GENERAL_DF_CLEANED)
 loans_df = load_data(LOANS_DF)
 
+clients_without_loans_now = 9477
+clients_with_loans_now = len(general_df) - clients_without_loans_now
+
 #SECTION 2 EDA PAGE: TITLE AND DESCRIPTION
 st.title('Exploratory analysis of bank loan data.')
 st.divider()
-st.text('Report on the preliminary analysis of data on customer loans. \n'
+st.markdown('Report on the preliminary analysis of data on customer loans. \n'
         'Data has been merged from multiple tables in a database. \n'
         'Here are the results of the analysis of the quality, \n'
         'completeness of the data and further opportunities to work on \n'
