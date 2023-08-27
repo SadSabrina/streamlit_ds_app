@@ -1,6 +1,6 @@
 # 👑 LOAN DATA: collecting from database, merging, analysis, model building...
 ### ... and deploying a data app using streamlit.
-
+![Financial-Tips.png](https://ltdfoto.ru/images/2023/08/27/Financial-Tips.png)
 ## Сollecting from database
 
 coming soon
