@@ -1,4 +1,15 @@
 import streamlit as st
+import pandas as pd
+import numpy as np
+import pickle
+import shap
+from sklearn.linear_model import LogisticRegression
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import StandardScaler
+from sklearn.metrics import recall_score, precision_score, f1_score
+from sklearn.metrics import classification_report
+
+from model import load_model, get_train_data
 import seaborn as sns
 import pandas as pd
 import matplotlib.pyplot as plt
@@ -51,11 +62,13 @@ GENERAL_DF = 'datasets/general_df.csv'
 GENERAL_DF_CLEANED = 'datasets/general_df_cleaned.csv'
 LOANS_DF = 'datasets/loans_df.csv'
 
+
 continuous_features = ['credit', 'fst_payment', 'age', 'child_total', 'dependants',
                        'own_auto', 'personal_income', 'work_time', 'closed_loans_count',
                        'total_loans_count']
 
-#SECTION 1 DATA LOADING
+#SECTION 1
+# DATA LOADING
 
 general_df = load_data(GENERAL_DF)
 general_df_cleaned = load_data(GENERAL_DF_CLEANED)
@@ -162,3 +175,18 @@ st.markdown('2. Demographic data of clients allows you to explore the administra
 st.markdown('3. Fields with data on the working status of the client are filled in incorrectly in some cases.')
 st.markdown('4. When building a model, you will probably have to use data imbalance correction methods.')
 st.markdown('5. Rare categories can lead to bad generalizing ability of the model.')
+
+
+
+##
+
+model = load_model('linear_model.pickle')
+X_train = np.load('/model_files/train_X_data.npy')
+X_test = np.load('/model_files/test_X_data.npy')
+
+y_train = np.load('/model_files/train_y_data.npy')
+y_train = np.load('/model_files/test_y_data.npy')
+
+clf_report, weighted_metrics = get_classification_report_to_custom_threshold(model, X_test, y_test, 0.32)
+st.write(clf_report)
+st.data(weighted_metrics)
