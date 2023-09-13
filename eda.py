@@ -33,7 +33,7 @@ def get_rare_pie(data: pd.Series, limits_count: int = 5):
     pie_labels_categories = data_to_pie_dict_categories.keys()
     pie_values_categories = data_to_pie_dict_categories.values()
 
-    fig = plt.figure(figsize=(6, 6))
+    fig = plt.figure(figsize=(11, 11))
 
     plt.pie(pie_values_categories, autopct='%1.0f%%',
             colors=sns.color_palette('Set2'), shadow=True,

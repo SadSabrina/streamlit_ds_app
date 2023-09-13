@@ -1,62 +1,14 @@
 import streamlit as st
 import pandas as pd
-import numpy as np
-import pickle
 import shap
-from sklearn.linear_model import LogisticRegression
-from sklearn.model_selection import train_test_split
-from sklearn.preprocessing import StandardScaler
-from sklearn.metrics import recall_score, precision_score, f1_score
-from sklearn.metrics import classification_report
-
-from model import load_model, get_train_data
+import numpy as np
+import time
 import seaborn as sns
-import pandas as pd
 import matplotlib.pyplot as plt
 
-def load_data(path: str):
-    return pd.read_csv(path, index_col=0)
+from eda import get_rare_pie, load_data
+from model import load_model, get_classification_report_to_custom_threshold, get_prediction_by_index, get_shap_values_by_index
 
-#pie chart function
-def get_rare_pie(data: pd.Series, limits_count: int = 5):
-
-    """Function to draw pie chart with rare categories"""
-    limits_dict = {}
-
-    for i in range(1, limits_count + 1):
-        limits_dict[i] = int(len(data) / 100 * i + 1)
-
-    rare_values = {}
-    data_to_pie_dict_categories = {}
-
-    for i in range(1, limits_count + 1):
-
-        if i == 1:
-            rare_values[i] = data.value_counts()[data.value_counts() < limits_dict[i]].index
-
-        else:
-            rare_values[i] = data.value_counts()[
-                (data.value_counts() < limits_dict[i]) & (data.value_counts() >= limits_dict[i - 1])].index
-
-        data_to_pie_dict_categories[
-            f'Categories ({len(rare_values[i])}) in which there are less samples than {i}% of data'] = len(
-            rare_values[i])
-
-    pie_labels_categories = data_to_pie_dict_categories.keys()
-    pie_values_categories = data_to_pie_dict_categories.values()
-
-    fig = plt.figure(figsize=(6, 6))
-
-    plt.pie(pie_values_categories, autopct='%1.0f%%',
-            colors=sns.color_palette('Set2'), shadow=True,
-            wedgeprops={"edgecolor": "white",
-                        'linewidth': 2,
-                        'antialiased': True})
-    plt.legend(pie_labels_categories, bbox_to_anchor=(1, 0.7))
-    plt.title('Categories in which samples are less than % of the data', weight='bold')
-    plt.show()
-
-    return fig
 
 GENERAL_DF = 'datasets/general_df.csv'
 GENERAL_DF_CLEANED = 'datasets/general_df_cleaned.csv'
@@ -77,16 +29,19 @@ loans_df = load_data(LOANS_DF)
 clients_without_loans_now = 9477
 clients_with_loans_now = len(general_df) - clients_without_loans_now
 
-#SECTION 2 EDA PAGE: TITLE AND DESCRIPTION
-st.title('Exploratory analysis of bank loan data.')
+#SECTION 2 PAGE: TITLE AND DESCRIPTION
+st.title('Exploratory analysis of bank loan data and linear decision model training.')
 st.divider()
 st.markdown('Report on the preliminary analysis of data on customer loans. \n'
-        'Data has been merged from multiple tables in a database. \n'
+             'Data has been merged from multiple tables in a database. \n'
         'Here are the results of the analysis of the quality, \n'
         'completeness of the data and further opportunities to work on \n'
-        'the basis of these data.')
+        'the basis of these data. \n')
 
-#SECTION 3 EDA PAGE: EDA BASIC CONCLUSIONS
+st.markdown('In addition, here you can test a logistic regression model \
+        trained to predict the likelihood of a customer responding to an advertising offer.')
+
+#SECTION 2 PAGE: EDA BASIC CONCLUSIONS
 st.header('EDA conclusions')
 st.subheader('Basic conclusions about data and loans')
 st.markdown('1. The raw combined data contained `300` duplicates, which was `2%` of all the original data.')
@@ -119,7 +74,7 @@ plt.title('Number of loans per client', weight='bold');
 
 st.write(loans_per_client_fig)
 
-#SECTION 3 EDA PAGE: EDA CONCLUSIONS ABOUT TARGET AND FEATURES QUALITY
+#SECTION 2 PAGE: EDA CONCLUSIONS ABOUT TARGET AND FEATURES QUALITY
 
 st.subheader('Conclusions about the quality of features and target')
 
@@ -166,7 +121,7 @@ st.text('Fact adress feature')
 
 st.markdown('5. Features `gen_industry`, `gen_title`, `job_dir` contains samples with empty fields.')
 
-#SECTION 4 EDA PAGE: GENERAL CONCLUSIONS
+#SECTION 2 PAGE: GENERAL CONCLUSIONS
 
 st.markdown('## General conclusions:')
 
@@ -178,15 +133,54 @@ st.markdown('5. Rare categories can lead to bad generalizing ability of the mode
 
 
 
-##
+#SECTION 2 PAGE: MODEL TESTING
 
 model = load_model('linear_model.pickle')
-X_train = np.load('/model_files/train_X_data.npy')
-X_test = np.load('/model_files/test_X_data.npy')
+X_train = np.load('model_files/train_X_data.npy') 
+X_test = np.load('model_files/test_X_data.npy')
 
-y_train = np.load('/model_files/train_y_data.npy')
-y_train = np.load('/model_files/test_y_data.npy')
+X_test_raw = load_data('model_files/X_test.csv').reset_index()
+columns = X_test_raw.columns
 
-clf_report, weighted_metrics = get_classification_report_to_custom_threshold(model, X_test, y_test, 0.32)
+y_train = np.load('model_files/train_y_data.npy')
+y_test = np.load('model_files/test_y_data.npy')
+
+
+st.markdown('# Model testing')
+st.markdown('## Conclusions about the model')
+st.markdown('Logistic regression was chosen as the basic model for predicting the probability of clients responses. Reasons for choosing logistic regression are:')
+st.markdown('- quick of learning and prediction;')
+st.markdown('- possibility of soft classification;')
+st.markdown('- mathematical interpretability of the probabilities')
+
+st.markdown('The training of models showed that anomalies in the length of service (thay were found during EDA) do not affect the quality of the model. This allows us to leave this data in the training dataset without the need to correct potentially erroneous observations (**however, it is important to clarify the nature of the error**).')
+#
+st.sidebar.header('Testing response prediction for test clients')
+selected_clf_treshold = st.sidebar.slider('Select treshold to predict positive (1) class', min_value=0.01, max_value=1.0, value=0.5, step=0.01)
+selected_client = st.sidebar.selectbox('Index', (range(0, len(X_test))))
+clf_report, weighted_metrics = get_classification_report_to_custom_threshold(model, X_test, y_test, selected_clf_treshold)
+
+selected_single_pred_treshold = st.sidebar.slider('Select treshold to predict class for the selected sample', min_value=0.01, max_value=1.0, value=0.5, step=0.01)
+
+prediction = get_prediction_by_index(model, X_test_raw, index=selected_client, treshold=selected_single_pred_treshold)
+
 st.write(clf_report)
-st.data(weighted_metrics)
+st.write(weighted_metrics)
+
+st.markdown('## Seleceted client')
+st.write(pd.DataFrame(X_test_raw.iloc[selected_client, :]).transpose())
+
+st.write('Model prediction for the selected client is', prediction)
+
+with st.spinner('Calculating features importances...'):
+    exp = get_shap_values_by_index(model, X_train, X_test, columns, index=selected_client, treshold=selected_single_pred_treshold)
+    time.sleep(1)
+st.success('Done!')
+
+fig, ax = plt.subplots()
+
+ax = shap.plots.waterfall(exp[selected_client])
+
+st.pyplot(fig) 
+
+

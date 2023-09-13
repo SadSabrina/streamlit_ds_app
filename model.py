@@ -1,6 +1,7 @@
 import pandas as pd
 import pickle
 import shap
+import numpy as np
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.preprocessing import StandardScaler
@@ -53,19 +54,20 @@ def get_classification_report_to_custom_threshold(model, X_test_data, y_test_dat
 
     #Classification report
 
-    cl_report = classification_report(y_test_data, predictions_cl)
+    cl_report = pd.DataFrame(classification_report(y_test_data, predictions_cl, output_dict=True)).transpose().drop(['macro avg', 'weighted avg', 'accuracy'])
 
     weighted_data = pd.DataFrame({'precision' : precision, 'recall' : recall, 'f1': f1}, index=['Weighted metrics'])
 
     return cl_report, weighted_data
 
-def get_prediction_by_index(model, X_test_data, X_test_original, index=1, treshold=0.5):
+def get_prediction_by_index(model, X_test_data, index=1, treshold=0.5):
 
     print()
     predictions = model.predict_proba(X_test_data)[:, 1] > treshold
     selected_idx = predictions[index]
 
-    print(f'Прогноз выбранного для данного клиента равен {int(selected_idx)}')
+    return int(selected_idx)
+    
     
 
 def get_shap_values_by_index(model, X_train_data, X_test_data, columns, index=1, treshold=0.5):
@@ -83,4 +85,8 @@ def get_shap_values_by_index(model, X_train_data, X_test_data, columns, index=1,
                   data=X_train_data, 
                   feature_names=columns)
 
-    shap.waterfall_plot(exp[index])
+    return exp #shap.waterfall_plot(exp[index])
+
+def st_shap(plot, height=None):
+    shap_html = f"<head>{shap.getjs()}</head><body>{plot.html()}</body>"
+    components.html(shap_html, height=height)
